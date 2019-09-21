@@ -1,13 +1,10 @@
 use legion::prelude::*;
 use quicksilver::prelude::*;
-use std::time::Instant;
 
 struct Game {
-    view: Rectangle,
-    universe: Universe,
+    _view: Rectangle,
+    _universe: Universe,
     world: World,
-    last_draw: Instant,
-    last_update: Instant,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -33,10 +30,79 @@ struct MySquare {
     width: f32,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Bullet;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Player;
+
+impl Player {
+    fn handle_event(event: &Event, world: &mut World) {
+        Self::handle_move_event(event, world);
+        Self::handle_shoot_event(event, world);
+    }
+
+    fn handle_shoot_event(event: &Event, world: &mut World) {
+        if let Event::Key(Key::Space, ButtonState::Pressed) = event {
+            let (pos_x, pos_y) = <(Tagged<Player>, Read<Position>)>::query()
+                .iter(&world)
+                .nth(0)
+                .map(|(_player, pos)| (pos.x, pos.y))
+                .unwrap();
+
+            world.insert(
+                ((), Bullet),
+                Some((
+                    MySquare {
+                        height: 25.,
+                        width: 25.,
+                    },
+                    Position { x: pos_x, y: pos_y },
+                    Velocity { dx: 5.0, dy: 0. },
+                )),
+            );
+        }
+    }
+
+    fn handle_move_event(event: &Event, world: &World) {
+        if let Event::Key(key, state) = event {
+            match state {
+                ButtonState::Pressed => Some(1.),
+                ButtonState::Released => Some(0.),
+                _ => None,
+            }
+            .and_then(|multiplier| {
+                <(Tagged<Player>, Write<Velocity>)>::query().for_each(
+                    world,
+                    |(_player, mut vel)| match key {
+                        Key::W => vel.dy = -1. * multiplier,
+                        Key::A => vel.dx = -1. * multiplier,
+                        Key::S => vel.dy = 1. * multiplier,
+                        Key::D => vel.dx = 1. * multiplier,
+                        _ => (),
+                    },
+                );
+                Some(())
+            })
+            .unwrap_or(());
+        }
+    }
+}
+
 impl State for Game {
     fn new() -> Result<Self> {
         let universe = Universe::new();
         let mut world = universe.create_world();
+
+        world.insert(
+            ((), Player),
+            Some((
+                MyCircle { radius: 5. },
+                Position { x: 200., y: 200. },
+                Velocity { dx: 0., dy: 0. },
+            )),
+        );
+
         world.insert(
             (),
             Some((
@@ -57,10 +123,8 @@ impl State for Game {
             )),
         );
         Ok(Game {
-            view: Rectangle::new_sized((800, 600)),
-            last_draw: Instant::now(),
-            last_update: Instant::now(),
-            universe,
+            _view: Rectangle::new_sized((800, 600)),
+            _universe: universe,
             world,
         })
     }
@@ -77,6 +141,8 @@ impl State for Game {
     }
 
     fn event(&mut self, event: &Event, window: &mut Window) -> Result<()> {
+        Player::handle_event(event, &mut self.world);
+
         match event {
             Event::MouseButton(MouseButton::Left, ButtonState::Pressed) => {
                 let pos = window.mouse().pos();
@@ -98,10 +164,6 @@ impl State for Game {
         }
     }
     fn draw(&mut self, window: &mut Window) -> Result<()> {
-        let draw_time = Instant::now();
-        let delta_t = draw_time - self.last_draw;
-        self.last_draw = draw_time;
-
         let mut query = <(Read<Position>, Read<MyCircle>)>::query();
         // Remove any lingering artifacts from the previous frame
         window.clear(Color::BLACK)?;

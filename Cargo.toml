@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 quicksilver = "0.3.18"
-legion = {git = "https://github.com/TomGillen/legion.git"}
+legion = {git = "https://github.com/TomGillen/legion.git", default-features = false}
 
 [profile.release]
 opt-level = 3
