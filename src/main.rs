@@ -1,11 +1,20 @@
 use legion::prelude::*;
+use nalgebra::{Point2, Vector2};
+use ncollide2d::bounding_volume::aabb::AABB;
+use ncollide2d::pipeline::CollisionGroups;
+use ncollide2d::world::CollisionWorld;
 use quicksilver::prelude::*;
 
 struct Game {
     _view: Rectangle,
     _universe: Universe,
     world: World,
+    collision_world: CollisionWorld<f32, Entity>,
+    ships: CollisionGroups,
+    bullets: CollisionGroups,
 }
+
+type BoundingBox = AABB<f32>;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Position {
@@ -54,8 +63,8 @@ impl Player {
                 ((), Bullet),
                 Some((
                     MySquare {
-                        height: 25.,
-                        width: 25.,
+                        height: 5.,
+                        width: 5.,
                     },
                     Position { x: pos_x, y: pos_y },
                     Velocity { dx: 5.0, dy: 0. },
@@ -97,7 +106,7 @@ impl State for Game {
         world.insert(
             ((), Player),
             Some((
-                MyCircle { radius: 5. },
+                MyCircle { radius: 15. },
                 Position { x: 200., y: 200. },
                 Velocity { dx: 0., dy: 0. },
             )),
@@ -122,10 +131,20 @@ impl State for Game {
                 Velocity { dx: 0.3, dy: 0.1 },
             )),
         );
+
+        let collision_world = CollisionWorld::new(0.02);
+        let mut ships = CollisionGroups::new();
+        ships.set_membership(&[0]);
+        let mut bullets = CollisionGroups::new();
+        bullets.set_membership(&[1]);
+
         Ok(Game {
             _view: Rectangle::new_sized((800, 600)),
             _universe: universe,
             world,
+            collision_world,
+            ships,
+            bullets,
         })
     }
 
@@ -154,6 +173,10 @@ impl State for Game {
                             height: 20.0,
                             width: 20.0,
                         },
+                        BoundingBox::from_half_extents(
+                            Point2::new(pos.x, pos.y),
+                            Vector2::new(10.0, 10.0),
+                        ),
                         Position { x: pos.x, y: pos.y },
                         Velocity { dx: 0.3, dy: 0.1 },
                     )),
