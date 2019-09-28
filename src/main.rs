@@ -151,7 +151,7 @@ impl State for Game {
     fn update(&mut self, _window: &mut Window) -> Result<()> {
         let mut query = <(Write<Position>, Read<Velocity>)>::query();
 
-        for (mut pos, vel) in query.iter(&self.world) {
+        for (entity, (mut pos, vel)) in query.iter_entities(&self.world) {
             pos.x += vel.dx;
             pos.y += vel.dy;
         }
