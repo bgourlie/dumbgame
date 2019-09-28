@@ -1,9 +1,41 @@
 use legion::prelude::*;
-use nalgebra::{Point2, Vector2};
+use nalgebra::{Isometry2, Point2, Vector2};
 use ncollide2d::bounding_volume::aabb::AABB;
-use ncollide2d::pipeline::CollisionGroups;
+use ncollide2d::bounding_volume::BoundingSphere;
+use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
+use ncollide2d::shape::{Ball, Shape, ShapeHandle};
 use ncollide2d::world::CollisionWorld;
 use quicksilver::prelude::*;
+
+type BoundingBox = AABB<f32>;
+type Position = Point2<f32>;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Velocity {
+    dx: f32,
+    dy: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Mob;
+
+impl Mob {
+    const HALF_EXTENT: f32 = 10.;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Bullet;
+
+impl Bullet {
+    const RADIUS: f32 = 5.;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Player;
+
+impl Player {
+    const RADIUS: f32 = 15.;
+}
 
 struct Game {
     _view: Rectangle,
@@ -14,66 +46,53 @@ struct Game {
     bullets: CollisionGroups,
 }
 
-type BoundingBox = AABB<f32>;
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct Position {
-    x: f32,
-    y: f32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct Velocity {
-    dx: f32,
-    dy: f32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct MyCircle {
-    radius: f32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct MySquare {
-    height: f32,
-    width: f32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct Bullet;
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct Player;
-
-impl Player {
-    fn handle_event(event: &Event, world: &mut World) {
-        Self::handle_move_event(event, world);
-        Self::handle_shoot_event(event, world);
+impl Game {
+    fn spawn_mob(&mut self, pos: impl Into<Position>) {
+        let half_extent = 10.;
+        self.world
+            .insert(((), Mob), Some((pos.into(), Velocity { dx: 0.3, dy: 0.1 })));
     }
 
-    fn handle_shoot_event(event: &Event, world: &mut World) {
-        if let Event::Key(Key::Space, ButtonState::Pressed) = event {
-            let (pos_x, pos_y) = <(Tagged<Player>, Read<Position>)>::query()
-                .iter(&world)
-                .nth(0)
-                .map(|(_player, pos)| (pos.x, pos.y))
-                .unwrap();
+    fn spawn_player(&mut self) {
+        let center = Position::new(200., 200.);
+        let bounding_sphere = BoundingSphere::new(center.clone(), Player::RADIUS);
+        self.world.insert(
+            ((), Player),
+            Some((center, bounding_sphere, Velocity { dx: 0., dy: 0. })),
+        );
+    }
 
-            world.insert(
-                ((), Bullet),
-                Some((
-                    MySquare {
-                        height: 5.,
-                        width: 5.,
-                    },
-                    Position { x: pos_x, y: pos_y },
-                    Velocity { dx: 5.0, dy: 0. },
-                )),
-            );
+    fn spawn_bullet(&mut self) {
+        let pos = <(Tagged<Player>, Read<Position>)>::query()
+            .iter(&self.world)
+            .map(|(_player, pos)| *pos)
+            .nth(0)
+            .unwrap();
+
+        let bounding_sphere = BoundingSphere::new(pos.clone(), Bullet::RADIUS);
+
+        let entity = self.world.insert(
+            ((), Bullet),
+            Some((bounding_sphere, pos, Velocity { dx: 5.0, dy: 0. })),
+        )[0];
+
+        //        let query_type = GeometricQueryType::Proximity(0.0);
+        //        let shape = ShapeHandle::new(ball);
+        //        self.collision_world.add(ball.), shape, self.bullets, query_type,  entity);
+    }
+
+    fn handle_event(&mut self, event: &Event) {
+        self.handle_move_event(event);
+        self.handle_shoot_event(event);
+    }
+
+    fn handle_shoot_event(&mut self, event: &Event) {
+        if let Event::Key(Key::Space, ButtonState::Pressed) = event {
+            self.spawn_bullet()
         }
     }
 
-    fn handle_move_event(event: &Event, world: &World) {
+    fn handle_move_event(&mut self, event: &Event) {
         if let Event::Key(key, state) = event {
             match state {
                 ButtonState::Pressed => Some(1.),
@@ -82,7 +101,7 @@ impl Player {
             }
             .and_then(|multiplier| {
                 <(Tagged<Player>, Write<Velocity>)>::query().for_each(
-                    world,
+                    &self.world,
                     |(_player, mut vel)| match key {
                         Key::W => vel.dy = -1. * multiplier,
                         Key::A => vel.dx = -1. * multiplier,
@@ -103,49 +122,24 @@ impl State for Game {
         let universe = Universe::new();
         let mut world = universe.create_world();
 
-        world.insert(
-            ((), Player),
-            Some((
-                MyCircle { radius: 15. },
-                Position { x: 200., y: 200. },
-                Velocity { dx: 0., dy: 0. },
-            )),
-        );
-
-        world.insert(
-            (),
-            Some((
-                MyCircle { radius: 20.0 },
-                Position { x: 100.0, y: 100.0 },
-                Velocity { dx: 0.1, dy: 0.25 },
-            )),
-        );
-        world.insert(
-            (),
-            Some((
-                MySquare {
-                    height: 20.0,
-                    width: 20.0,
-                },
-                Position { x: 100.0, y: 100.0 },
-                Velocity { dx: 0.3, dy: 0.1 },
-            )),
-        );
-
         let collision_world = CollisionWorld::new(0.02);
         let mut ships = CollisionGroups::new();
         ships.set_membership(&[0]);
         let mut bullets = CollisionGroups::new();
         bullets.set_membership(&[1]);
 
-        Ok(Game {
+        let mut game = Game {
             _view: Rectangle::new_sized((800, 600)),
             _universe: universe,
             world,
             collision_world,
             ships,
             bullets,
-        })
+        };
+
+        game.spawn_player();
+        game.spawn_mob(Position::new(10., 10.));
+        Ok(game)
     }
 
     fn update(&mut self, _window: &mut Window) -> Result<()> {
@@ -160,49 +154,40 @@ impl State for Game {
     }
 
     fn event(&mut self, event: &Event, window: &mut Window) -> Result<()> {
-        Player::handle_event(event, &mut self.world);
+        self.handle_event(event);
 
         match event {
             Event::MouseButton(MouseButton::Left, ButtonState::Pressed) => {
                 let pos = window.mouse().pos();
-
-                self.world.insert(
-                    (),
-                    Some((
-                        MySquare {
-                            height: 20.0,
-                            width: 20.0,
-                        },
-                        BoundingBox::from_half_extents(
-                            Point2::new(pos.x, pos.y),
-                            Vector2::new(10.0, 10.0),
-                        ),
-                        Position { x: pos.x, y: pos.y },
-                        Velocity { dx: 0.3, dy: 0.1 },
-                    )),
-                );
+                self.spawn_mob(pos.into_point());
                 Ok(())
             }
             _ => Ok(()),
         }
     }
     fn draw(&mut self, window: &mut Window) -> Result<()> {
-        let mut query = <(Read<Position>, Read<MyCircle>)>::query();
-        // Remove any lingering artifacts from the previous frame
         window.clear(Color::BLACK)?;
-        // Draw a rectangle with a top-left corner at (100, 100) and a width and height of 32 with
-        // a blue background
-        for (pos, circle) in query.iter(&self.world) {
+
+        for (_player, pos) in <(Tagged<Player>, Read<Position>)>::query().iter(&self.world) {
             window.draw(
-                &Circle::new((pos.x, pos.y), circle.radius),
+                &Circle::new((pos.x, pos.y), Player::RADIUS),
                 Col(Color::GREEN),
             );
         }
 
-        let mut query = <(Read<Position>, Read<MySquare>)>::query();
-        for (pos, square) in query.iter(&self.world) {
+        for (_bullet, pos) in <(Tagged<Bullet>, Read<Position>)>::query().iter(&self.world) {
             window.draw(
-                &Rectangle::new((pos.x, pos.y), (square.width, square.height)),
+                &Circle::new((pos.x, pos.y), Bullet::RADIUS),
+                Col(Color::GREEN),
+            );
+        }
+
+        for (_mob, pos) in <(Tagged<Mob>, Read<Position>)>::query().iter(&self.world) {
+            window.draw(
+                &Rectangle::new(
+                    (pos.x, pos.y),
+                    (Mob::HALF_EXTENT * 2., Mob::HALF_EXTENT * 2.),
+                ),
                 Col(Color::GREEN),
             );
         }
