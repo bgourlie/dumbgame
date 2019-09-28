@@ -1,19 +1,38 @@
 use legion::prelude::*;
-use nalgebra::{Isometry2, Point2, Vector2};
+use nalgebra::{Isometry2, Matrix2, Point2, Vector2};
 use ncollide2d::bounding_volume::aabb::AABB;
 use ncollide2d::bounding_volume::BoundingSphere;
 use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
 use ncollide2d::shape::{Ball, Shape, ShapeHandle};
 use ncollide2d::world::CollisionWorld;
 use quicksilver::prelude::*;
+use std::ops::{Mul, MulAssign};
 
 type BoundingBox = AABB<f32>;
 type Position = Point2<f32>;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct Velocity {
-    dx: f32,
-    dy: f32,
+struct Velocity(Vector2<f32>);
+
+impl Velocity {
+    fn new(x: f32, y: f32) -> Velocity {
+        Velocity(Vector2::new(x, y))
+    }
+}
+
+impl Mul<Matrix2<f32>> for Velocity {
+    type Output = Self;
+
+    fn mul(self, rhs: Matrix2<f32>) -> Self::Output {
+        let Velocity(vec) = self;
+        Velocity(rhs.mul(vec))
+    }
+}
+impl MulAssign<Matrix2<f32>> for Velocity {
+    fn mul_assign(&mut self, rhs: Matrix2<f32>) {
+        let Velocity(vec) = self;
+        *self = Velocity(rhs.mul(*vec));
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -50,15 +69,15 @@ impl Game {
     fn spawn_mob(&mut self, pos: impl Into<Position>) {
         let half_extent = 10.;
         self.world
-            .insert(((), Mob), Some((pos.into(), Velocity { dx: 0.3, dy: 0.1 })));
+            .insert(((), Mob), Some((pos.into(), Velocity::new(0.3, 0.1))));
     }
 
     fn spawn_player(&mut self) {
         let center = Position::new(200., 200.);
-        let bounding_sphere = BoundingSphere::new(center.clone(), Player::RADIUS);
+        let bounding_sphere = BoundingSphere::new(center, Player::RADIUS);
         self.world.insert(
             ((), Player),
-            Some((center, bounding_sphere, Velocity { dx: 0., dy: 0. })),
+            Some((center, bounding_sphere, Velocity::new(0., 0.))),
         );
     }
 
@@ -69,11 +88,11 @@ impl Game {
             .nth(0)
             .unwrap();
 
-        let bounding_sphere = BoundingSphere::new(pos.clone(), Bullet::RADIUS);
+        let bounding_sphere = BoundingSphere::new(pos, Bullet::RADIUS);
 
         let entity = self.world.insert(
             ((), Bullet),
-            Some((bounding_sphere, pos, Velocity { dx: 5.0, dy: 0. })),
+            Some((bounding_sphere, pos, Velocity::new(5., 0.))),
         )[0];
 
         //        let query_type = GeometricQueryType::Proximity(0.0);
@@ -103,10 +122,10 @@ impl Game {
                 <(Tagged<Player>, Write<Velocity>)>::query().for_each(
                     &self.world,
                     |(_player, mut vel)| match key {
-                        Key::W => vel.dy = -1. * multiplier,
-                        Key::A => vel.dx = -1. * multiplier,
-                        Key::S => vel.dy = 1. * multiplier,
-                        Key::D => vel.dx = 1. * multiplier,
+                        Key::W => *vel *= Matrix2::new(1., 0., -1. * multiplier, 0.),
+                        Key::A => *vel *= Matrix2::new(-1. * multiplier, 0., 1., 0.),
+                        Key::S => *vel *= Matrix2::new(1., 0., 1. * multiplier, 0.),
+                        Key::D => *vel *= Matrix2::new(1. * multiplier, 0., 1., 0.),
                         _ => (),
                     },
                 );
@@ -146,8 +165,8 @@ impl State for Game {
         let mut query = <(Write<Position>, Read<Velocity>)>::query();
 
         for (entity, (mut pos, vel)) in query.iter_entities(&self.world) {
-            pos.x += vel.dx;
-            pos.y += vel.dy;
+            let Velocity(vel) = *vel;
+            *pos += vel;
         }
 
         Ok(())
