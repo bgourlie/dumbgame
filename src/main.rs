@@ -6,7 +6,7 @@ use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
 use ncollide2d::shape::{Ball, Shape, ShapeHandle};
 use ncollide2d::world::CollisionWorld;
 use quicksilver::prelude::*;
-use std::ops::{Mul, MulAssign};
+use std::ops::{Add, AddAssign};
 
 type BoundingBox = AABB<f32>;
 type Position = Point2<f32>;
@@ -20,18 +20,18 @@ impl Velocity {
     }
 }
 
-impl Mul<Matrix2<f32>> for Velocity {
+impl Add<Vector2<f32>> for Velocity {
     type Output = Self;
 
-    fn mul(self, rhs: Matrix2<f32>) -> Self::Output {
+    fn add(self, rhs: Vector2<f32>) -> Self::Output {
         let Velocity(vec) = self;
-        Velocity(rhs.mul(vec))
+        Velocity(vec + rhs)
     }
 }
-impl MulAssign<Matrix2<f32>> for Velocity {
-    fn mul_assign(&mut self, rhs: Matrix2<f32>) {
+impl AddAssign<Vector2<f32>> for Velocity {
+    fn add_assign(&mut self, rhs: Vector2<f32>) {
         let Velocity(vec) = self;
-        *self = Velocity(rhs.mul(*vec));
+        *self = Velocity(*vec + rhs);
     }
 }
 
@@ -122,10 +122,10 @@ impl Game {
                 <(Tagged<Player>, Write<Velocity>)>::query().for_each(
                     &self.world,
                     |(_player, mut vel)| match key {
-                        Key::W => *vel *= Matrix2::new(1., 0., -1. * multiplier, 0.),
-                        Key::A => *vel *= Matrix2::new(-1. * multiplier, 0., 1., 0.),
-                        Key::S => *vel *= Matrix2::new(1., 0., 1. * multiplier, 0.),
-                        Key::D => *vel *= Matrix2::new(1. * multiplier, 0., 1., 0.),
+                        Key::W => *vel = Velocity::new(0., -1. * multiplier),
+                        Key::A => *vel = Velocity::new(-1. * multiplier, 0.),
+                        Key::S => *vel = Velocity::new(0., 1. * multiplier),
+                        Key::D => *vel = Velocity::new(1. * multiplier, 0.),
                         _ => (),
                     },
                 );
@@ -165,7 +165,7 @@ impl State for Game {
         let mut query = <(Write<Position>, Read<Velocity>)>::query();
 
         for (entity, (mut pos, vel)) in query.iter_entities(&self.world) {
-            let Velocity(vel) = *vel;
+            let Velocity(vel) = *vel; // TODO: impl AddAssign for Velocity
             *pos += vel;
         }
 
