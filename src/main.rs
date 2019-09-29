@@ -23,14 +23,12 @@ impl Add<Velocity> for Position {
     type Output = Self;
 
     fn add(self, rhs: Velocity) -> Self::Output {
-        let Velocity(rhs) = rhs;
-        self + rhs
+        self.add(rhs.0)
     }
 }
 impl AddAssign<Velocity> for Position {
     fn add_assign(&mut self, rhs: Velocity) {
-        let Velocity(rhs) = rhs;
-        *self = self.add(rhs);
+        self.add_assign(rhs.0);
     }
 }
 
@@ -38,45 +36,25 @@ impl Add<Vector2<f32>> for Velocity {
     type Output = Self;
 
     fn add(self, rhs: Vector2<f32>) -> Self::Output {
-        let Velocity(vec) = self;
-        Velocity(vec + rhs)
+        Velocity(self.0.add(rhs))
     }
 }
+
 impl AddAssign<Vector2<f32>> for Velocity {
     fn add_assign(&mut self, rhs: Vector2<f32>) {
-        let Velocity(vec) = self;
-        *self = Velocity(*vec + rhs);
+        self.0.add_assign(rhs);
     }
 }
 
 impl Add for Velocity {
     type Output = Self;
     fn add(self, rhs: Velocity) -> Self::Output {
-        let Velocity(vel) = self;
-        let Velocity(rhs) = rhs;
-        Velocity(vel + rhs)
+        Velocity(self.0 + rhs.0)
     }
 }
 impl AddAssign for Velocity {
     fn add_assign(&mut self, rhs: Velocity) {
-        let Velocity(vel) = self;
-        let Velocity(rhs) = rhs;
-        *self = Velocity(*vel + rhs);
-    }
-}
-
-impl Mul<Matrix2<f32>> for Velocity {
-    type Output = Self;
-
-    fn mul(self, rhs: Matrix2<f32>) -> Self::Output {
-        let Velocity(vec) = self;
-        Velocity(rhs.mul(vec))
-    }
-}
-impl MulAssign<Matrix2<f32>> for Velocity {
-    fn mul_assign(&mut self, rhs: Matrix2<f32>) {
-        let Velocity(vec) = self;
-        *self = self.mul(rhs);
+        self.0.add_assign(rhs.0);
     }
 }
 
