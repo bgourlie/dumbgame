@@ -423,7 +423,7 @@ dependencies = [
  "legion 0.1.1 (git+https://github.com/TomGillen/legion.git)",
  "nalgebra 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ncollide2d 0.20.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "quicksilver 0.3.19 (git+https://github.com/bgourlie/quicksilver.git?branch=fix-collisions-feature2)",
+ "quicksilver 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1206,7 +1206,7 @@ dependencies = [
 [[package]]
 name = "quicksilver"
 version = "0.3.19"
-source = "git+https://github.com/bgourlie/quicksilver.git?branch=fix-collisions-feature2#907edea97fd46342318de1a8e9eca6443025632e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2269,7 +2269,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum precomputed-hash 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
 "checksum proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)" = "cf3d2011ab5c909338f7887f4fc896d35932e29146c12c8d01da6b22a80ba759"
 "checksum proc-macro2 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "afdc77cc74ec70ed262262942ebb7dac3d479e9e5cfa2da1841c0806f6cdabcc"
-"checksum quicksilver 0.3.19 (git+https://github.com/bgourlie/quicksilver.git?branch=fix-collisions-feature2)" = "<none>"
+"checksum quicksilver 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)" = "9a3176b98680d405365b252d7c06d3efa9d1e8664dd0ddaf78f93850b98a3113"
 "checksum quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "7a6e920b65c65f10b2ae65c831a81a073a89edd28c7cce89475bff467ab4167a"
 "checksum quote 0.6.13 (registry+https://github.com/rust-lang/crates.io-index)" = "6ce23b6b870e8f94f81fb0a363d65d86675884b34a09043c81e5562f11c1f8e1"
 "checksum quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "053a8c8bcc71fcce321828dc897a98ab9760bef03a4fc36693c231e5b3216cfe"
