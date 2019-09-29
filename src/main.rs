@@ -1,62 +1,11 @@
+mod prelude;
+
 use legion::prelude::*;
-use nalgebra::{Isometry2, Matrix2, Point2, Vector2};
-use ncollide2d::bounding_volume::aabb::AABB;
 use ncollide2d::bounding_volume::BoundingSphere;
-use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
-use ncollide2d::shape::{Ball, Shape, ShapeHandle};
+use ncollide2d::pipeline::CollisionGroups;
 use ncollide2d::world::CollisionWorld;
+use prelude::*;
 use quicksilver::prelude::*;
-use std::ops::{Add, AddAssign, Mul, MulAssign};
-
-type Position = Point2<f32>;
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct Velocity(Vector2<f32>);
-
-impl Velocity {
-    fn new(x: f32, y: f32) -> Velocity {
-        Velocity(Vector2::new(x, y))
-    }
-}
-
-impl Add<Velocity> for Position {
-    type Output = Self;
-
-    fn add(self, rhs: Velocity) -> Self::Output {
-        self.add(rhs.0)
-    }
-}
-impl AddAssign<Velocity> for Position {
-    fn add_assign(&mut self, rhs: Velocity) {
-        self.add_assign(rhs.0);
-    }
-}
-
-impl Add<Vector2<f32>> for Velocity {
-    type Output = Self;
-
-    fn add(self, rhs: Vector2<f32>) -> Self::Output {
-        Velocity(self.0.add(rhs))
-    }
-}
-
-impl AddAssign<Vector2<f32>> for Velocity {
-    fn add_assign(&mut self, rhs: Vector2<f32>) {
-        self.0.add_assign(rhs);
-    }
-}
-
-impl Add for Velocity {
-    type Output = Self;
-    fn add(self, rhs: Velocity) -> Self::Output {
-        Velocity(self.0 + rhs.0)
-    }
-}
-impl AddAssign for Velocity {
-    fn add_assign(&mut self, rhs: Velocity) {
-        self.0.add_assign(rhs.0);
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Mob;
@@ -83,21 +32,20 @@ struct Game {
     _view: Rectangle,
     _universe: Universe,
     world: World,
-    collision_world: CollisionWorld<f32, Entity>,
-    ships: CollisionGroups,
-    bullets: CollisionGroups,
+    _collision_world: CollisionWorld<f32, Entity>,
+    _ships: CollisionGroups,
+    _bullets: CollisionGroups,
 }
 
 impl Game {
     fn spawn_mob(&mut self, pos: impl Into<Position>) {
-        let half_extent = 10.;
         self.world
             .insert(((), Mob), Some((pos.into(), Velocity::new(0.3, 0.1))));
     }
 
     fn spawn_player(&mut self) {
         let center = Position::new(200., 200.);
-        let bounding_sphere = BoundingSphere::new(center, Player::RADIUS);
+        let bounding_sphere = BoundingSphere::new(center.into(), Player::RADIUS);
         self.world.insert(
             ((), Player),
             Some((center, bounding_sphere, Velocity::new(0., 0.))),
@@ -111,9 +59,9 @@ impl Game {
             .nth(0)
             .unwrap();
 
-        let bounding_sphere = BoundingSphere::new(pos, Bullet::RADIUS);
+        let bounding_sphere = BoundingSphere::new(pos.into(), Bullet::RADIUS);
 
-        let entity = self.world.insert(
+        let _entity = self.world.insert(
             ((), Bullet),
             Some((bounding_sphere, pos, Velocity::new(5., 0.))),
         )[0];
@@ -174,9 +122,9 @@ impl State for Game {
             _view: Rectangle::new_sized((800, 600)),
             _universe: universe,
             world,
-            collision_world,
-            ships,
-            bullets,
+            _collision_world: collision_world,
+            _ships: ships,
+            _bullets: bullets,
         };
 
         game.spawn_player();
@@ -209,25 +157,16 @@ impl State for Game {
         window.clear(Color::BLACK)?;
 
         for (_player, pos) in <(Tagged<Player>, Read<Position>)>::query().iter(&self.world) {
-            window.draw(
-                &Circle::new((pos.x, pos.y), Player::RADIUS),
-                Col(Color::GREEN),
-            );
+            window.draw(&Circle::new(*pos, Player::RADIUS), Col(Color::GREEN));
         }
 
         for (_bullet, pos) in <(Tagged<Bullet>, Read<Position>)>::query().iter(&self.world) {
-            window.draw(
-                &Circle::new((pos.x, pos.y), Bullet::RADIUS),
-                Col(Color::GREEN),
-            );
+            window.draw(&Circle::new(*pos, Bullet::RADIUS), Col(Color::GREEN));
         }
 
         for (_mob, pos) in <(Tagged<Mob>, Read<Position>)>::query().iter(&self.world) {
             window.draw(
-                &Rectangle::new(
-                    (pos.x, pos.y),
-                    (Mob::HALF_EXTENT * 2., Mob::HALF_EXTENT * 2.),
-                ),
+                &Rectangle::new(*pos, (Mob::HALF_EXTENT * 2., Mob::HALF_EXTENT * 2.)),
                 Col(Color::GREEN),
             );
         }
