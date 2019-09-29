@@ -1,8 +1,10 @@
 mod prelude;
 
+use fnv::FnvHashMap;
 use legion::prelude::*;
-use ncollide2d::bounding_volume::BoundingSphere;
-use ncollide2d::pipeline::CollisionGroups;
+use nalgebra::Vector2;
+use ncollide2d::pipeline::{CollisionGroups, CollisionObjectSlabHandle, GeometricQueryType};
+use ncollide2d::shape::{Ball, Cuboid, ShapeHandle};
 use ncollide2d::world::CollisionWorld;
 use prelude::*;
 use quicksilver::prelude::*;
@@ -32,24 +34,32 @@ struct Game {
     _view: Rectangle,
     _universe: Universe,
     world: World,
-    _collision_world: CollisionWorld<f32, Entity>,
-    _ships: CollisionGroups,
-    _bullets: CollisionGroups,
+    collision_world: CollisionWorld<f32, Entity>,
+    mobs: CollisionGroups,
+    bullets: CollisionGroups,
+    collision_object_handles: FnvHashMap<Entity, CollisionObjectSlabHandle>,
 }
 
 impl Game {
     fn spawn_mob(&mut self, pos: impl Into<Position>) {
-        self.world
-            .insert(((), Mob), Some((pos.into(), Velocity::new(0.3, 0.1))));
+        let pos = pos.into();
+        let entity = self
+            .world
+            .insert(((), Mob), Some((pos, Velocity::new(0.3, 0.1))))[0];
+
+        let query_type = GeometricQueryType::Proximity(0.0);
+        let cuboid = Cuboid::new(Vector2::new(Mob::HALF_EXTENT, Mob::HALF_EXTENT));
+        let shape = ShapeHandle::new(cuboid);
+        let (handle, _) =
+            self.collision_world
+                .add(pos.isometry(), shape, self.mobs, query_type, entity);
+        self.collision_object_handles.insert(entity, handle);
     }
 
     fn spawn_player(&mut self) {
         let center = Position::new(200., 200.);
-        let bounding_sphere = BoundingSphere::new(center.into(), Player::RADIUS);
-        self.world.insert(
-            ((), Player),
-            Some((center, bounding_sphere, Velocity::new(0., 0.))),
-        );
+        self.world
+            .insert(((), Player), Some((center, Velocity::new(0., 0.))));
     }
 
     fn spawn_bullet(&mut self) {
@@ -59,16 +69,17 @@ impl Game {
             .nth(0)
             .unwrap();
 
-        let bounding_sphere = BoundingSphere::new(pos.into(), Bullet::RADIUS);
+        let entity = self
+            .world
+            .insert(((), Bullet), Some((pos, Velocity::new(5., 0.))))[0];
 
-        let _entity = self.world.insert(
-            ((), Bullet),
-            Some((bounding_sphere, pos, Velocity::new(5., 0.))),
-        )[0];
-
-        //        let query_type = GeometricQueryType::Proximity(0.0);
-        //        let shape = ShapeHandle::new(ball);
-        //        self.collision_world.add(ball.), shape, self.bullets, query_type,  entity);
+        let query_type = GeometricQueryType::Proximity(0.0);
+        let ball = Ball::new(Bullet::RADIUS);
+        let shape = ShapeHandle::new(ball);
+        let (handle, _) =
+            self.collision_world
+                .add(pos.isometry(), shape, self.bullets, query_type, entity);
+        self.collision_object_handles.insert(entity, handle);
     }
 
     fn handle_event(&mut self, event: &Event) {
@@ -122,9 +133,10 @@ impl State for Game {
             _view: Rectangle::new_sized((800, 600)),
             _universe: universe,
             world,
-            _collision_world: collision_world,
-            _ships: ships,
-            _bullets: bullets,
+            collision_world,
+            mobs: ships,
+            bullets,
+            collision_object_handles: FnvHashMap::default(),
         };
 
         game.spawn_player();
@@ -135,8 +147,20 @@ impl State for Game {
     fn update(&mut self, _window: &mut Window) -> Result<()> {
         let mut query = <(Write<Position>, Read<Velocity>)>::query();
 
-        for (_entity, (mut pos, vel)) in query.iter_entities(&self.world) {
+        for (entity, (mut pos, vel)) in query.iter_entities(&self.world) {
             *pos += *vel;
+            if let Some(handle) = self.collision_object_handles.get(&entity) {
+                if let Some(object) = self.collision_world.objects.get_mut(*handle) {
+                    object.set_position(pos.isometry())
+                }
+            }
+        }
+        self.collision_world.update();
+
+        let mut bang_count = 0;
+        for e in self.collision_world.proximity_events() {
+            bang_count += 1;
+            println!("bang {}!", bang_count);
         }
         Ok(())
     }

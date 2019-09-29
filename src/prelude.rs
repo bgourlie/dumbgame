@@ -1,10 +1,10 @@
 use custom_derive::custom_derive;
-use nalgebra::{Point2, Vector2};
 use newtype_derive::*;
 use quicksilver::prelude::*;
 
-type Point = Point2<f32>;
-type Vec2 = Vector2<f32>;
+type Isometry = nalgebra::Isometry2<f32>;
+type Point = nalgebra::Point2<f32>;
+type Vec2 = nalgebra::Vector2<f32>;
 
 custom_derive! {
     #[derive(
@@ -34,6 +34,10 @@ impl Position {
     pub fn y(self) -> f32 {
         self.0.y
     }
+
+    pub fn isometry(self) -> Isometry {
+        Isometry::new(self.0.coords, 0.0)
+    }
 }
 
 impl From<Position> for Vector {
@@ -44,7 +48,7 @@ impl From<Position> for Vector {
 
 impl Velocity {
     pub fn new(x: f32, y: f32) -> Velocity {
-        Velocity(Vector2::new(x, y))
+        Velocity(Vec2::new(x, y))
     }
 }
 

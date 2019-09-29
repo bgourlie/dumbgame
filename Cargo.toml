@@ -11,6 +11,7 @@ nalgebra = "0.18"
 legion = {git = "https://github.com/TomGillen/legion.git", default-features = false}
 custom_derive = "0.1.7"
 newtype_derive = "0.1.6"
+fnv = "1.0.6"
 
 [profile.release]
 opt-level = 3
