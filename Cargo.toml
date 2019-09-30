@@ -12,6 +12,8 @@ legion = {git = "https://github.com/TomGillen/legion.git", default-features = fa
 custom_derive = "0.1.7"
 newtype_derive = "0.1.6"
 fnv = "1.0.6"
+log = "0.4.8"
+env_logger = "0.7.0"
 
 [profile.release]
 opt-level = 3

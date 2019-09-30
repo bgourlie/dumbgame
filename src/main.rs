@@ -2,6 +2,7 @@ mod prelude;
 
 use fnv::FnvHashMap;
 use legion::prelude::*;
+use log::info;
 use nalgebra::Vector2;
 use ncollide2d::pipeline::{CollisionGroups, CollisionObjectSlabHandle, GeometricQueryType};
 use ncollide2d::shape::{Ball, Cuboid, ShapeHandle};
@@ -157,10 +158,8 @@ impl State for Game {
         }
         self.collision_world.update();
 
-        let mut bang_count = 0;
         for e in self.collision_world.proximity_events() {
-            bang_count += 1;
-            println!("bang {}!", bang_count);
+            info!("bang {:?}!", e);
         }
         Ok(())
     }
@@ -199,6 +198,7 @@ impl State for Game {
 }
 
 fn main() {
+    env_logger::init();
     run::<Game>(
         "Dumb Game",
         Vector::new(800, 600),
